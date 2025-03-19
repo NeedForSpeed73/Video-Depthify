@@ -61,7 +61,7 @@ if "__main__" == __name__:
 
 	if apple_silicon:
 		if torch.backends.mps.is_available() and torch.backends.mps.is_built():
-            device = torch.device("mps:0")
+        	device = torch.device("mps:0")
         else:
             device = torch.device("cpu")
             logging.warning("MPS is not available. Running on CPU will be slow.")
