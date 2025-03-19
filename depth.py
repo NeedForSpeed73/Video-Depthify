@@ -61,17 +61,17 @@ if "__main__" == __name__:
 
 	if apple_silicon:
 		if torch.backends.mps.is_available() and torch.backends.mps.is_built():
-        	device = torch.device("mps:0")
-        else:
-            device = torch.device("cpu")
-            logging.warning("MPS is not available. Running on CPU will be slow.")
-    else:
-        if torch.cuda.is_available():
-            device = torch.device("cuda")
-        else:
-            device = torch.device("cpu")
-            logging.warning("CUDA is not available. Running on CPU will be slow.")
-    logging.info(f"device = {device}")
+			device = torch.device("mps:0")
+		else:
+			device = torch.device("cpu")
+			logging.warning("MPS is not available. Running on CPU will be slow.")
+	else:
+		if torch.cuda.is_available():
+			device = torch.device("cuda")
+		else:
+			device = torch.device("cpu")
+			logging.warning("CUDA is not available. Running on CPU will be slow.")
+	logging.info(f"device = {device}")
 
 	midas.to(device)
 	midas.eval()
