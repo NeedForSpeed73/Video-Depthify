@@ -52,17 +52,25 @@ if "__main__" == __name__:
 	input_rgb_dir = args.input_rgb_dir
 	output_dir = args.output_dir
 	small_model = args.smallmodel
+	apple_silicon = args.apple_silicon
 
 	if small_model:
 		midas = torch.hub.load('intel-isl/MiDaS', 'MiDaS_small', trust_repo=True)
 	else:
 		midas = torch.hub.load('intel-isl/MiDaS', 'DPT_Large', trust_repo=True)
 
-	if torch.cuda.is_available():
-		device = torch.device("cuda")
+	if apple_silicon:
+		if torch.backends.mps.is_available() and torch.backends.mps.is_built():
+			device = torch.device("mps:0")
+		else:
+			device = torch.device("cpu")
+			logging.warning("MPS is not available. Running on CPU will be slow.")
 	else:
-		device = torch.device("cpu")
-		logging.warning("CUDA is not available. Running on CPU will be slow.")
+		if torch.cuda.is_available():
+			device = torch.device("cuda")
+		else:
+			device = torch.device("cpu")
+			logging.warning("CUDA is not available. Running on CPU will be slow.")
 	logging.info(f"device = {device}")
 
 	midas.to(device)
