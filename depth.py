@@ -14,6 +14,40 @@ import logging
 
 EXTENSION_LIST = [".jpg", ".jpeg", ".png"]
 
+def process_rgb_to_depth(midas, device, transform, rgb_path):
+    img = cv2.imread(rgb_path)
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+
+    input_batch = transform(img).to(device)
+
+    prediction = midas(input_batch)
+
+    prediction = torch.nn.functional.interpolate(
+				prediction.unsqueeze(1),
+				size = img.shape[:2],
+				mode = 'bicubic',
+				align_corners = False,
+			).squeeze()
+
+    output = prediction.cpu().numpy()
+    return output
+
+def save_normalized_depth_image(output_dir_tif, path_name, image):
+    rgb_name_base = os.path.splitext(os.path.basename(path_name))[0]
+    pred_name_base = rgb_name_base + "_pred"
+    png_save_path = os.path.join(output_dir_tif, f"{pred_name_base}.png")
+    if os.path.exists(png_save_path):
+     logging.warning(f"Existing file: '{png_save_path}' will be overwritten")
+    image_normalized = (image * 255 / np.max(image)).astype('uint8')
+    image = Image.fromarray(image_normalized)
+    image_converted = image.convert('L').save(png_save_path)
+
+def average_neighborhood_values(arr, prev, curr, next):
+    arr = arr + prev / 3
+    arr = arr + curr / 3
+    arr = arr + next / 3
+    return arr
+
 if "__main__" == __name__:
 	logging.basicConfig(level=logging.INFO)
 
@@ -48,7 +82,7 @@ if "__main__" == __name__:
 	)
 
 	args = parser.parse_args()
-
+	
 	input_rgb_dir = args.input_rgb_dir
 	output_dir = args.output_dir
 	small_model = args.smallmodel
@@ -104,33 +138,50 @@ if "__main__" == __name__:
 	with torch.no_grad():
 		os.makedirs(output_dir, exist_ok=True)
 
-		for rgb_path in tqdm(rgb_filename_list, desc="Estimating depth", leave=True):
+		items = n_images - 2
+		first = rgb_filename_list[0]
+		last = rgb_filename_list[n_images - 1]
 
-			img = cv2.imread(rgb_path)
-			img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+		# Process the first image
+		# and save it to the output directory
+		# with the same name as the input image
+		# but with the "_pred" suffix
+		
+		output = process_rgb_to_depth(midas, device, transform, first)
+		save_normalized_depth_image(output_dir_tif, first, output)
 
-			input_batch = transform(img).to(device)
+		# Process the second image with averaging
+		# and save it to the output directory
+		arr = np.zeros((output.shape[0], output.shape[1]), np.float64)
+		prev = output
+		curr = process_rgb_to_depth(midas, device, transform, rgb_filename_list[1])
+		next = process_rgb_to_depth(midas, device, transform, rgb_filename_list[2])
 
-			prediction = midas(input_batch)
+		arr = average_neighborhood_values(arr, prev, curr, next)
 
-			prediction = torch.nn.functional.interpolate(
-				prediction.unsqueeze(1),
-				size = img.shape[:2],
-				mode = 'bicubic',
-				align_corners = False,
-			).squeeze()
+		save_normalized_depth_image(output_dir_tif, rgb_filename_list[1], arr)
+		
+		# Process all other images with averaging
+		# and save them to the output directory
+		 
+		current	= 2
 
-			output = prediction.cpu().numpy()
+		for idx in tqdm(range(items - 1)):
+			current = idx + 2
+			arr = np.zeros((output.shape[0], output.shape[1]), np.float64)
+			prev = curr
+			curr = next
+			next = process_rgb_to_depth(midas, device, transform, rgb_filename_list[current + 1])
 
-			#output_normalized = (output * 255 / np.max(output)).astype('uint8')
-			#output_image = Image.fromarray(output_normalized)
-			#output_image_converted = output_image.convert('L').save(file.replace('rgb', 'depth'))
-			rgb_name_base = os.path.splitext(os.path.basename(rgb_path))[0]
-			pred_name_base = rgb_name_base + "_pred"
-			png_save_path = os.path.join(output_dir_tif, f"{pred_name_base}.png")
-			if os.path.exists(png_save_path):
-				logging.warning(f"Existing file: '{png_save_path}' will be overwritten")
-			output_normalized = (output * 255 / np.max(output)).astype('uint8')
-			output_image = Image.fromarray(output_normalized)
-			output_image_converted = output_image.convert('L').save(png_save_path)
-		print('Done.')
+			arr = average_neighborhood_values(arr, prev, curr, next)
+						
+			save_normalized_depth_image(output_dir_tif, rgb_filename_list[current], arr)
+	
+		# Process the last image
+		# and save it to the output directory
+			
+		output = process_rgb_to_depth(midas, device, transform, last)
+		save_normalized_depth_image(output_dir_tif, last, output)
+			
+	print('Done.')
+		
