@@ -1,0 +1,17 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug depth.py",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/depth.py",
+      "args": [
+        "--input_rgb_dir", "/Users/Emilio/workspace/input",
+        "--output_dir", "/Users/Emilio/workspace/output",
+        "--smallmodel",           // optional flag
+        "--apple_silicon"         // optional flag
+      ]
+    }
+  ]
+}

@@ -161,7 +161,7 @@ if "__main__" == __name__:
 
 		save_normalized_depth_image(output_dir_tif, rgb_filename_list[1], arr)
 		
-		# Process all other images with averaging
+		# Process all remaining but the last images with averaging
 		# and save them to the output directory
 		 
 		current	= 2
